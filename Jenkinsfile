@@ -1,5 +1,5 @@
 pipeline {
-    agent any  // Run on any available agent
+    agent any
 
     environment {
         PROJECT_NAME = "flask-redis-app"
@@ -16,7 +16,7 @@ pipeline {
 
         stage('Dev Deploy') {
             when {
-                branch 'dev'
+                expression { return env.GIT_BRANCH ==~ /.*dev$/ }
             }
             steps {
                 echo "Deploying Development version (port 8088)..."
@@ -26,7 +26,7 @@ pipeline {
 
         stage('Prod Deploy') {
             when {
-                branch 'main'
+                expression { return env.GIT_BRANCH ==~ /.*main$/ }
             }
             steps {
                 echo "Deploying Production version (port 8087)..."
