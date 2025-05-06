@@ -5,7 +5,15 @@ LOG_FILE="deploy.log"
 SLACK_WEBHOOK_URL=""  # Optional: paste your Slack webhook URL here
 # ======================================================
 
-echo "🚀 Starting deployment process..." | tee -a "$LOG_FILE"
+echo "🚀 Starting deployment process..." | tee "$LOG_FILE"
+
+# Ensure deploy.log is ignored by Git
+if ! grep -q "^deploy\\.log$" .gitignore 2>/dev/null; then
+    echo "📄 Adding deploy.log to .gitignore..."
+    echo "deploy.log" >> .gitignore
+    git add .gitignore
+    git commit -m "chore: ignore deploy.log from Git tracking" >> "$LOG_FILE" 2>/dev/null
+fi
 
 # Prompt for commit message
 read -p "Enter your commit message: " COMMIT_MESSAGE
@@ -22,7 +30,7 @@ read -p "Do you want to merge 'dev' into 'main'? (y/n): " MERGE_DEV
 # Prompt whether to add all files or specific files
 read -p "Do you want to add all files (git add .)? (y/n): " ADD_ALL
 if [ "$ADD_ALL" == "y" ]; then
-    echo "Adding all files to staging..." | tee -a "$LOG_FILE"
+    echo "📥 Adding all files to staging..." | tee -a "$LOG_FILE"
     git add .
 else
     read -p "Enter specific files to add (space-separated): " FILES
@@ -39,13 +47,16 @@ if git diff --cached --quiet; then
 else
     echo "📌 Committing with message: $COMMIT_MESSAGE" | tee -a "$LOG_FILE"
     git commit -m "$COMMIT_MESSAGE" | tee -a "$LOG_FILE"
-
     echo "📤 Pushing 'dev' to remote..." | tee -a "$LOG_FILE"
     git push origin dev | tee -a "$LOG_FILE"
 fi
 
 # Step 2: Merge to main if requested
 if [ "$MERGE_DEV" == "y" ]; then
+    echo "🧹 Cleaning up working directory before switching to 'main'..." | tee -a "$LOG_FILE"
+    git restore --staged "$LOG_FILE" 2>/dev/null
+    git restore "$LOG_FILE" 2>/dev/null
+
     echo "🔀 Merging 'dev' into 'main'..." | tee -a "$LOG_FILE"
     git checkout main || { echo "❌ Failed to checkout 'main'" | tee -a "$LOG_FILE"; exit 1; }
     git pull origin main | tee -a "$LOG_FILE"
