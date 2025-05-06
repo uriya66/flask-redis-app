@@ -1,5 +1,6 @@
 #!/bin/bash
 
+
 # ===== CONFIG =====
 LOG_DIR="./logs"
 LOG_FILE="$LOG_DIR/deploy.log"
