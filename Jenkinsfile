@@ -9,14 +9,14 @@ pipeline {
         stage('Preparation') {
             steps {
                 script {
-                    echo "Branch: ${env.GIT_BRANCH}"
+                    echo "Branch or Tag: ${env.GIT_BRANCH}" // Print the current branch or tag
                 }
             }
         }
 
         stage('Dev Deploy') {
             when {
-                expression { return env.GIT_BRANCH ==~ /.*dev$/ }
+                expression { return env.GIT_BRANCH ==~ /.*dev$/ } // Run only on dev branch
             }
             steps {
                 echo "Deploying Development version (port 8088)..."
@@ -26,7 +26,7 @@ pipeline {
 
         stage('Prod Deploy') {
             when {
-                expression { return env.GIT_BRANCH ==~ /.*main$/ }
+                tag pattern: "v*", comparator: "REGEXP" // Run only on tag like v1.0.0
             }
             steps {
                 echo "Deploying Production version (port 8087)..."
@@ -37,10 +37,10 @@ pipeline {
 
     post {
         success {
-            echo "✅ Deployment completed successfully!"
+            echo "✅ Deployment completed successfully!" // Notify success
         }
         failure {
-            echo "❌ Deployment failed!"
+            echo "❌ Deployment failed!" // Notify failure
         }
     }
 }
