@@ -1,17 +1,14 @@
 #!/bin/bash
 
-
-# ===== CONFIG =====
+# =================== CONFIGURATION ====================
 LOG_DIR="./logs"
 LOG_FILE="$LOG_DIR/deploy.log"
 TAG_REGEX="^v[0-9]+\.[0-9]+\.[0-9]+$"
-# ==================
+# ======================================================
 
 # 🔧 Ensure log directory exists
 mkdir -p "$LOG_DIR"
-
-# 🧼 Clean log if exists
-> "$LOG_FILE"
+> "$LOG_FILE"  # Clean previous log
 
 log() {
     echo "$1" | tee -a "$LOG_FILE"
@@ -31,7 +28,7 @@ else
     git add $FILES
 fi
 
-# 🔄 Merge dev to main
+# 🔀 Merge dev to main
 read -p "Do you want to merge 'dev' into 'main'? (y/n): " MERGE_DEV
 
 # 🏷️ Tag
@@ -68,11 +65,13 @@ fi
 
 git push origin dev || { log "❌ Failed to push dev"; exit 1; }
 
-# 🔀 Merge to main
+# 🔀 Merge to main (with custom message)
 if [ "$MERGE_DEV" == "y" ]; then
     git checkout main || { log "❌ Failed to checkout main"; exit 1; }
     git pull origin main
-    git merge dev || { log "❌ Merge failed"; exit 1; }
+
+    MERGE_MSG="Merge branch 'dev' to main - $COMMIT_MESSAGE"
+    git merge dev -m "$MERGE_MSG" || { log "❌ Merge failed"; exit 1; }
     git push origin main || { log "❌ Push to main failed"; exit 1; }
     log "✅ Merged 'dev' into 'main'"
 fi
