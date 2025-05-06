@@ -1,0 +1,109 @@
+#!/bin/bash
+
+# =================== CONFIGURATION ====================
+LOG_FILE="deploy.log"
+SLACK_WEBHOOK_URL=""  # Optional: paste your Slack webhook URL here
+# ======================================================
+
+echo "🚀 Starting deployment process..." | tee "$LOG_FILE"
+
+# Step 0: Save local changes to deploy_version.sh if modified
+if [[ $(git status --short deploy_version.sh) ]]; then
+    echo "⚠️ Local changes in deploy_version.sh detected. Backing up temporarily..." | tee -a "$LOG_FILE"
+    cp deploy_version.sh deploy_version.bak
+    git restore deploy_version.sh 2>/dev/null
+fi
+
+# Step 1: Ensure deploy.log is ignored
+if ! grep -q "^deploy\\.log$" .gitignore 2>/dev/null; then
+    echo "📄 Adding deploy.log to .gitignore..." | tee -a "$LOG_FILE"
+    echo "deploy.log" >> .gitignore
+    git add .gitignore
+    git commit -m "chore: ignore deploy.log" >> "$LOG_FILE" 2>/dev/null
+fi
+
+# Step 2: Prompt inputs
+read -p "Enter your commit message: " COMMIT_MESSAGE
+if [[ -z "$COMMIT_MESSAGE" ]]; then
+    COMMIT_MESSAGE="chore: generic deployment update"
+fi
+
+read -p "Enter tag name (e.g., v1.2.3) or press Enter to skip: " VERSION
+read -p "Delete existing tag if found? (y/n): " DELETE_TAG
+read -p "Do you want to merge 'dev' into 'main'? (y/n): " MERGE_DEV
+read -p "Do you want to rollback from tag? (y/n): " DO_ROLLBACK
+read -p "Do you want to add all files (git add .)? (y/n): " ADD_ALL
+
+# Step 3: Add files
+if [ "$ADD_ALL" == "y" ]; then
+    echo "📥 Adding all files to staging..." | tee -a "$LOG_FILE"
+    git add .
+else
+    read -p "Enter specific files to add: " FILES
+    git add $FILES
+fi
+
+# Step 4: Checkout dev and push
+echo "📦 Switching to 'dev' branch..." | tee -a "$LOG_FILE"
+git stash push -m "tmp-save" deploy_version.sh >/dev/null 2>&1
+git checkout dev || { echo "❌ Failed to checkout 'dev'" | tee -a "$LOG_FILE"; exit 1; }
+
+if git diff --cached --quiet; then
+    echo "⚠️ No staged changes to commit." | tee -a "$LOG_FILE"
+else
+    echo "📌 Committing with message: $COMMIT_MESSAGE" | tee -a "$LOG_FILE"
+    git commit -m "$COMMIT_MESSAGE" | tee -a "$LOG_FILE"
+    git push origin dev | tee -a "$LOG_FILE"
+fi
+
+# Step 5: Merge dev -> main
+if [ "$MERGE_DEV" == "y" ]; then
+    echo "🔀 Merging 'dev' into 'main'..." | tee -a "$LOG_FILE"
+    git checkout main || { echo "❌ Failed to checkout 'main'" | tee -a "$LOG_FILE"; exit 1; }
+    git pull origin main | tee -a "$LOG_FILE"
+    git merge dev || { echo "❌ Merge failed" | tee -a "$LOG_FILE"; exit 1; }
+    git push origin main | tee -a "$LOG_FILE"
+fi
+
+# Step 6: Tag management
+if [ ! -z "$VERSION" ]; then
+    if git rev-parse "$VERSION" >/dev/null 2>&1; then
+        if [ "$DELETE_TAG" == "y" ]; then
+            echo "🗑️ Deleting existing tag $VERSION..." | tee -a "$LOG_FILE"
+            git tag -d "$VERSION"
+            git push origin ":refs/tags/$VERSION"
+        else
+            echo "⚠️ Tag $VERSION exists. Skipping tag creation." | tee -a "$LOG_FILE"
+            exit 0
+        fi
+    fi
+
+    echo "🏷️ Creating new tag $VERSION" | tee -a "$LOG_FILE"
+    git tag -a "$VERSION" -m "Release: $VERSION"
+    git push origin "$VERSION"
+
+    if [ ! -z "$SLACK_WEBHOOK_URL" ]; then
+        echo "📩 Sending Slack notification..." | tee -a "$LOG_FILE"
+        curl -X POST -H 'Content-type: application/json' --data "{
+            \"text\": \":rocket: New production release: *$VERSION* was pushed to GitHub.\"
+        }" $SLACK_WEBHOOK_URL
+    fi
+fi
+
+# Step 7: Optional rollback from tag
+if [ "$DO_ROLLBACK" == "y" ]; then
+    read -p "Enter tag to rollback from (e.g., v1.0.0): " TAG_ROLLBACK
+    echo "🕒 Rolling back to $TAG_ROLLBACK..." | tee -a "$LOG_FILE"
+    git checkout "$TAG_ROLLBACK" || { echo "❌ Failed to checkout tag"; exit 1; }
+    git checkout -b "rollback-${TAG_ROLLBACK}" || { echo "❌ Failed to create rollback branch"; exit 1; }
+    echo "✅ Now you're on rollback-$TAG_ROLLBACK — make changes and push if needed."
+fi
+
+# Restore script if backed up
+if [ -f deploy_version.bak ]; then
+    mv deploy_version.bak deploy_version.sh
+    echo "♻️ Restored deploy_version.sh from backup"
+fi
+
+echo "✅ Deployment process completed." | tee -a "$LOG_FILE"
+
