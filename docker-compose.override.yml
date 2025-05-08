@@ -3,17 +3,15 @@ version: '3'
 services:
   web:
     volumes:
-      - ./app:/app  # Bind source code for live development
-    command: flask run --host=0.0.0.0 --port=8088 --reload  # Enable hot-reload for Flask
+      - ./app:/app
+    command: flask run --host=0.0.0.0 --port=8087
     environment:
-      - FLASK_ENV=development  # Set dev mode
-    depends_on:
-      - redis  # Wait for Redis
+      - FLASK_ENV=development
 
   redis:
     volumes:
-      - redis_data:/data  # Persist Redis data
+      - redis_data:/data
 
 volumes:
-  redis_data:  # Declare named volume for Redis
+  redis_data:
 
