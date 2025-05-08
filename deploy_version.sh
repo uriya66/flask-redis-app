@@ -25,7 +25,11 @@ if [ "$ADD_ALL" == "y" ]; then
     git add .
 else
     read -p "Enter specific files to add (space-separated): " FILES
-    git add $FILES
+    if [ -n "$FILES" ]; then
+        git add $FILES
+    else
+        log "⚠️ No files specified to add. Skipping git add."
+    fi
 fi
 
 # 🔀 Merge dev to main
