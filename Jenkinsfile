@@ -2,26 +2,17 @@ pipeline {
     agent any
 
     environment {
-        PROJECT_NAME = "flask-redis-app" // Project name for context
-        GIT_BRANCH = ''
-        GIT_TAG = ''
+        PROJECT_NAME = "flask-redis-app"
     }
 
     stages {
         stage('Detect Git Context') {
             steps {
                 script {
-                    // Detect Git tag (if any)
-                    def tag = sh(script: "git describe --tags --exact-match || true", returnStdout: true).trim()
-                    if (tag.startsWith("v")) {
-                        env.GIT_TAG = tag
-                        echo "📦 Detected Tag: ${env.GIT_TAG}"
-                    }
-
-                    // Always detect current branch
-                    def branch = sh(script: "git rev-parse --abbrev-ref HEAD", returnStdout: true).trim()
-                    env.GIT_BRANCH = branch
-                    echo "🌿 Detected Branch: ${env.GIT_BRANCH}"
+                    env.GIT_BRANCH = env.BRANCH_NAME ?: ""
+                    env.IS_TAG = env.BRANCH_NAME ==~ /^v\d+\.\d+\.\d+$/
+                    echo "🌿 BRANCH_NAME = ${env.BRANCH_NAME}"
+                    echo "📦 IS_TAG = ${env.IS_TAG}"
                 }
             }
         }
@@ -29,7 +20,7 @@ pipeline {
         stage('Dev Deploy') {
             when {
                 expression {
-                    return env.GIT_BRANCH ==~ /.*dev$/ // Run only on branches like 'dev'
+                    return env.GIT_BRANCH ==~ /.*dev$/
                 }
             }
             steps {
@@ -41,9 +32,8 @@ pipeline {
 
         stage('Prod Deploy') {
             when {
-                allOf {
-                    expression { return env.GIT_BRANCH == 'main' }  // Must be main
-                    expression { return env.GIT_TAG ==~ /^v.*/ }     // Must be version tag
+                expression {
+                    return env.GIT_BRANCH == 'main' || env.IS_TAG == 'true'
                 }
             }
             steps {
