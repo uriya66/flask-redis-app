@@ -34,6 +34,9 @@ It features **Docker Compose**, **Nginx as reverse proxy**, **SSL with Certbot**
 - **No cache**: `pip install --no-cache-dir` to reduce size
 - **Precise copy**: Only `app/` is copied – no `.git`, `.env`, etc.
 - **Security scan**: Use `snyk test --docker` to detect vulnerabilities
+- **Run as non-root**: The app runs as `appuser` inside the container using `USER`, enhancing runtime security.
+- **Dynamic build labels**: Jenkins injects the Git tag into the image via `ARG BUILD_VERSION` and `LABEL version=...` – allowing version traceability in `docker inspect`.
+- **Security scanning**: Images are scanned by **Snyk** as part of the Jenkins pipeline.
 
 ---
 
@@ -51,6 +54,22 @@ This project uses a production-optimized Dockerfile based on best practices:
 
 > 🔐 If someone builds your image, they do **not need to manually install anything**.  
 > As long as they run `docker build .`, the Dockerfile handles all steps: installing, copying, and preparing the app.
+> 🧑‍💻 The Dockerfile also:
+> - Creates a non-root user `appuser` with `adduser -D appuser` for secure runtime.
+> - Accepts a dynamic build argument `BUILD_VERSION` from Jenkins and injects it into image labels.
+> - Ensures reproducibility and traceability using `LABEL version="${BUILD_VERSION}"`.
+
+> You can inspect metadata with:
+> ```bash
+> docker inspect flask-redis-app:latest
+> ```
+> And search for:
+> ```json
+> "Labels": {
+>   "version": "v1.0.3",
+>   ...
+> }
+> ```
 
 
 ---
@@ -94,6 +113,30 @@ This allows your app to demonstrate:
   - Deploy to Dev (port 8087) or Prod (port 8088)
   - Triggered via GitHub Webhook
 - Slack notifications included (via `post` block)
+
+---
+
+## 🔐 Docker Security & Metadata Integration
+
+This project applies container security best practices:
+
+- Non-root user execution (appuser) inside the Dockerfile for enhanced runtime safety.
+- Multi-stage build ensures only production-ready files are shipped – no dev tools or caches.
+- Metadata labels (LABEL) are added dynamically based on the Git tag (version) via ARG BUILD_VERSION from Jenkins.
+- Snyk Security Scan runs inside the Jenkins pipeline (Security Scan stage) and inspects:
+- The final Docker image (--docker)
+- Python packages from requirements.txt (inside the image)
+- All vulnerabilities (CVEs) are printed and reviewed during the build without failing the pipeline.
+
+
+These steps ensure your images are:
+
+- Lightweight
+- Traceable by version
+- Secure by default
+- CI-aware and auditable
+
+✅ This gives your production images a real-world DevSecOps touch with minimum effort.
 
 ---
 

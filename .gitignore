@@ -1,1 +1,30 @@
+# Logs
 logs/
+*.log
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Virtual environments
+venv/
+.env
+*.env
+
+# Editor settings
+.vscode/
+.idea/
+.DS_Store
+
+# Node modules (if frontend is added later)
+node_modules/
+
+# Backup or temporary files
+*.save
+*.bak
+*.swp
+
+# Shell scripts not for version control
+rollback.sh
+deploy_version.sh
+
