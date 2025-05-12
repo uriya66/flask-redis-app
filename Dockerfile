@@ -1,21 +1,32 @@
-# Use official Python 3.10 image as base
-FROM python:3.10
+# Stage 1 – Build Python dependencies
+FROM python:3.11-alpine AS builder
 
-# Set the working directory inside the container
 WORKDIR /app
 
-# Copy only requirements first (for caching purposes)
+# Install build dependencies (for wheels compilation)
+RUN apk add --no-cache gcc musl-dev libffi-dev
+
+# Copy only requirements file for layer caching
 COPY app/requirements.txt .
 
-# Install Python dependencies
-RUN pip install -r requirements.txt
+# Install Python packages
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
-# Copy the entire application code
+
+# Stage 2 – Runtime image
+FROM python:3.11-alpine
+
+WORKDIR /app
+
+# Copy installed packages from builder stage
+COPY --from=builder /install /usr/local
+
+# Copy application code only
 COPY app/ .
 
-# Expose the Flask app port
+# Expose Flask app port (prod: 8088 / dev: overridden)
 EXPOSE 8088
 
-# Default command to run the Flask app in development (can be overridden in prod)
+# Default command (can be overridden by docker-compose)
 CMD ["python", "app.py"]
 
