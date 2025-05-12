@@ -3,6 +3,7 @@ services:
     build: .
     depends_on:
       - redis
+      - mysql  # Add MySQL dependency
     networks:
       - devnet
     healthcheck:
@@ -21,6 +22,24 @@ services:
       timeout: 10s
       retries: 3
 
+  mysql:
+    image: mysql:8.0
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass123  # Root password (change in prod)
+      MYSQL_DATABASE: app_db            # Initial DB name
+      MYSQL_USER: app_user              # App user
+      MYSQL_PASSWORD: app_pass123       # Password for user
+    volumes:
+      - mysql_data:/var/lib/mysql       # Persistent MySQL data
+    networks:
+      - devnet
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
   nginx:
     image: nginx:alpine
     volumes:
@@ -33,4 +52,8 @@ services:
 networks:
   devnet:
     driver: bridge
+
+volumes:
+  redis_data:
+  mysql_data:  # Volume for MySQL data
 

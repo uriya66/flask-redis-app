@@ -1,80 +1,129 @@
 # 🚀 Flask Redis App with Jenkins CI/CD and Nginx Reverse Proxy
 
-This project demonstrates a **professional DevOps pipeline** for a Flask + Redis application. It uses **Docker Compose** for container orchestration, **Nginx** as a reverse proxy, and **Jenkins** for CI/CD automation.
+This project demonstrates a **production-grade DevOps pipeline** for a Flask + Redis application.  
+It features **Docker Compose**, **Nginx as reverse proxy**, **SSL with Certbot**, and **Jenkins CI/CD**.
 
 ---
 
-## 📦 Technologies Used
+## ⚙️ Technologies
 
-- **Flask** – Python micro web framework (development + production)
-- **Redis** – In-memory key-value store
-- **Gunicorn** – WSGI HTTP server (production only)
-- **Nginx** – Reverse proxy (with SSL in production)
-- **Docker & Docker Compose** – Container management
-- **Jenkins** – Multibranch pipeline CI/CD with GitHub Webhook
-- **Let's Encrypt + Certbot** – SSL management in production
+- **Flask** – Python web app
+- **Redis** – Key-value store
+- **Gunicorn** – WSGI server for production
+- **Docker & Compose** – Container orchestration
+- **Jenkins** – Multibranch pipeline with GitHub Webhook
+- **Nginx** – Reverse proxy
+- **Certbot (Let's Encrypt)** – SSL certificates
+- **Snyk** – Security scans for Docker Images
 
 ---
 
-## 🌐 Environments
+## 🌐 Environment Configuration
 
-| Environment   | Flask Internal Port | NGINX External Port | Access URL                            |
-|---------------|---------------------|----------------------|----------------------------------------|
-| Development   | 8087                | 8081                 | http://aws16.duckdns.org:8081/        |
-| Production    | 8088                | 8082                 | https://aws16.duckdns.org:8082/       |
+| Environment   | Flask Internal | NGINX External | Access URL                         |
+|---------------|----------------|----------------|-------------------------------------|
+| Development   | 8087           | 8081           | http://aws16.duckdns.org:8081      |
+| Production    | 8088           | 8082           | https://aws16.duckdns.org:8082     |
+
+---
+
+## 🐳 Docker Image Optimization
+
+- **Alpine base image**: Small footprint (~60MB instead of 1.02GB)
+- **Multi-stage builds**: Split between build-time and runtime layers
+- **No cache**: `pip install --no-cache-dir` to reduce size
+- **Precise copy**: Only `app/` is copied – no `.git`, `.env`, etc.
+- **Security scan**: Use `snyk test --docker` to detect vulnerabilities
+
+---
+
+## 🔧 Dockerfile Optimization Summary
+
+This project uses a production-optimized Dockerfile based on best practices:
+
+| Line in Dockerfile           | What it does                     | Real-world impact on your project                                                                 |
+|-----------------------------|----------------------------------|---------------------------------------------------------------------------------------------------|
+| `FROM python:3.11-alpine`   | Uses Alpine Linux base image     | Reduces image size drastically (~60MB). Faster build & deploy. Requires manual dependency install. |
+| `apk add ...` in builder    | Adds GCC and build tools         | Needed for installing packages like `gunicorn`. Removed from final image via multi-stage build.    |
+| `Multi-stage build`         | Builds then copies result        | Keeps final image minimal – no pip cache, no compilers, no temp files. Enhances security & speed.  |
+| `--no-cache-dir`            | Disables pip cache               | Saves space by not saving unnecessary files in image (~30-50MB saved depending on packages).       |
+| `COPY app/ .`               | Copies only the app folder       | Avoids leaking `.git`, `.env`, IDE configs – ensures clean and secure deployment.                  |
+
+> 🔐 If someone builds your image, they do **not need to manually install anything**.  
+> As long as they run `docker build .`, the Dockerfile handles all steps: installing, copying, and preparing the app.
+
+
+---
+
+## 🗃️ MySQL Integration (2025-05-12)
+
+This project now includes a **fully integrated MySQL database** for both development and production environments.
+
+- **Dockerized MySQL**: Defined in all `docker-compose` files with environment variables:
+  - `MYSQL_ROOT_PASSWORD`, `MYSQL_DATABASE`, `MYSQL_USER`, `MYSQL_PASSWORD`
+- **Persistent Volumes**: Each environment uses a separate named volume (`mysql_data`) for data persistence.
+- **Auto Port Mapping (Dev)**: In `docker-compose.override.yml`, port `3307` on the host maps to MySQL `3306` for local access.
+- **Secure in Prod**: No external MySQL ports are exposed in production.
+- **Flask Integration**:
+  - The Flask app connects to Redis *and* MySQL.
+  - A test route `/` creates a `visits` table and logs data to it.
+  - Both Redis and MySQL values are displayed in the browser.
+- **Automatic Table Creation**: On first launch, `visits` table is created if not exists.
+- **Auto Insert & Fetch**: Every refresh inserts a row and fetches all values for display.
+
+This allows your app to demonstrate:
+- Full DB connectivity
+- Safe stateful persistence
+- Real-world Flask + MySQL logic
 
 ---
 
 ## 🧪 Health Checks
 
-- **Flask**: Checked via `curl http://localhost:<internal-port>`
-- **Redis**: Checked via `redis-cli ping`
-- **Docker Compose**: Includes healthchecks for all containers
+- `web`: `curl http://localhost:8087` or `8088`
+- `redis`: `redis-cli ping`
+- Defined in `docker-compose.yml` as part of `healthcheck`
 
 ---
 
-## ⚙️ Jenkins CI/CD Pipeline
+## 🧬 Jenkins Pipeline Overview
 
-- Multibranch Pipeline: detects `dev`, `main`, and version tags like `v1.0.0`
-- **GitHub Webhook** triggers builds automatically on push
-- **dev branch**:
-  - Triggers Development Deployment
-  - Uses `docker-compose.override.yml`
-  - Serves via Nginx on port **8081**
-- **main branch + tag (e.g., v1.0.0)**:
-  - Triggers Production Deployment
-  - Uses `docker-compose.prod.yml`
-  - Serves via Nginx on port **8082**
-- All logic defined in `Jenkinsfile`
-
----
-
-## 🔐 Security
-
-- Nginx in production supports **HTTPS** via Let's Encrypt
-- SSL certificates managed via **Certbot**
-- AWS Security Groups:
-  - Only open required ports: `8081`, `8082`, `443`, and `22`
-- Jenkins runs as a user with Docker access (`jenkins` in `docker` group)
-- No sudo required for Docker commands in pipelines
+- `Jenkinsfile` includes:
+  - Git context detection: branch vs tag
+  - Build image with tag/version
+  - Deploy to Dev (port 8087) or Prod (port 8088)
+  - Triggered via GitHub Webhook
+- Slack notifications included (via `post` block)
 
 ---
 
 ## 🗂 Project Structure
 
+```bash
 flask-redis-app/
-├── app/ # Flask application
-├── certbot/ # SSL certificates and webroot for Let's Encrypt
-├── nginx/
-│ ├── dev.conf # Nginx config for development
-│ └── prod.conf # Nginx config for production
-├── docker-compose.yml # Base compose file
-├── docker-compose.override.yml # Dev-specific overrides
-├── docker-compose.prod.yml # Production overrides
-├── Jenkinsfile # CI/CD pipeline definition
-├── deploy_version.sh # Automates tagging, merging, rollback
-├── .gitignore # Ignores logs/ and other local files
-└── README.md # This file
+├── app/                     # Flask application
+│   ├── static/images/       # Static assets (e.g., docker logo)
+│   │   └── docker logo.png
+│   ├── templates/           # HTML templates for Flask
+│   │   └── index.html
+│   ├── app.py               # Main Flask application logic
+│   └── requirements.txt     # Python dependencies
+│
+├── nginx/                   # Nginx reverse proxy configs
+│   ├── default.conf
+│   ├── dev.conf
+│   └── prod.conf
+│
+├── .gitignore               # Git ignored files
+├── .dockerignore            # Docker build ignored files
+├── Dockerfile               # Docker Image build instructions
+├── Jenkinsfile              # Jenkins CI/CD pipeline
+├── README.md                # Project documentation
+├── deploy_version.sh        # Bash script for tagging + release automation
+│
+├── docker-compose.yml               # Base docker-compose definition
+├── docker-compose.override.yml      # Dev-specific config (port 8087 + hot reload)
+├── docker-compose.prod.yml          # Prod-specific config (port 8088 + Gunicorn + SSL)
 
 ---
 

@@ -1,19 +1,24 @@
 services:
   web:
     volumes:
-      - ./app:/app
+      - ./app:/app  # Mount app code for live development
     command: flask run --host=0.0.0.0 --port=8087
     environment:
       - FLASK_ENV=development
 
   redis:
     volumes:
-      - redis_data:/data
+      - redis_data:/data  # Redis persistence in dev
+
+  mysql:
+    ports:
+      - "3307:3306"  # Expose MySQL dev port
 
   nginx:
     ports:
-      - "8081:8081"  # Dev NGINX
+      - "8081:8081"  # Dev NGINX port
 
 volumes:
   redis_data:
+  mysql_data:
 

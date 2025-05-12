@@ -1,4 +1,4 @@
 flask
 redis
 gunicorn
-
+pymysql

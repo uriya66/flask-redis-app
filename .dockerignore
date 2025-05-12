@@ -1,0 +1,47 @@
+# Python bytecode and caches
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+__init__.pyc
+
+# Logs and temp files
+*.log
+logs/
+
+# Environment files
+.env
+*.env
+
+# Git files
+.git/
+.gitignore
+FETCH_HEAD
+
+# Editor configs and system files
+.vscode/
+.idea/
+.DS_Store
+
+# Python environments
+venv/
+
+# Frontend / node
+node_modules/
+
+# DevOps scripts and configs (not needed inside container)
+certbot/
+nginx/
+deploy_version.sh
+rollback.sh
+README.md
+Jenkinsfile
+
+# Redis/MySQL backup & DB dumps
+*.rdb
+*.sql
+*.sql.gz
+*.dump
+backup/
+mysql_data/
+
